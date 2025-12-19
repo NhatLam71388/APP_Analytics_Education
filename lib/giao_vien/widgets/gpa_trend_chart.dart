@@ -1,57 +1,120 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 import '../../models/class_model.dart';
 import '../../services/teacher_api_service.dart';
 
-class GPATrendChart extends StatelessWidget {
+class GPATrendChart extends StatefulWidget {
   final List<ClassModel> classes;
-  final List<ClassGPATrendResponse>? gpaTrendByClass; // Dữ liệu từ API Xu-Huong-GPA-Trung-Binh-Theo-Lop
   final Animation<double>? animation;
 
   const GPATrendChart({
     super.key,
     required this.classes,
-    this.gpaTrendByClass,
     this.animation,
   });
 
   @override
-  Widget build(BuildContext context) {
-    // Lấy tất cả các năm học từ API nếu có, nếu không thì lấy từ classes
-    final allYears = <String>{};
-    if (gpaTrendByClass != null && gpaTrendByClass!.isNotEmpty) {
-      // Lấy tất cả các năm học từ API
-      for (var trend in gpaTrendByClass!) {
-        trend.gpaByYear.forEach((year, gpa) {
-          if (gpa != null) {
-            allYears.add(year);
-          }
+  State<GPATrendChart> createState() => _GPATrendChartState();
+}
+
+class _GPATrendChartState extends State<GPATrendChart> {
+  List<ClassSemesterGPAResponse>? _gpaData;
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadGPAData();
+  }
+
+  Future<void> _loadGPAData() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+
+      final allData = await TeacherApiService.getClassGPABySemesterAndYear();
+
+      if (!mounted) return;
+
+      // Lọc dữ liệu theo các lớp được chọn
+      final filteredData = allData.where((item) {
+        return widget.classes.any((classModel) {
+          return item.tenLop == classModel.tenLop ||
+                 item.tenLop == classModel.maLop ||
+                 item.tenLop.trim() == classModel.tenLop.trim() ||
+                 item.tenLop.trim() == classModel.maLop.trim();
         });
-      }
-    } else {
-      // Fallback: lấy từ classes
-      for (var classItem in classes) {
-        for (var semester in classItem.semesterData) {
-          // Extract năm học từ hocKy (ví dụ: "HK1-2023-2024" -> "2023-2024")
-          final parts = semester.hocKy.split('-');
-          if (parts.length >= 3) {
-            allYears.add('${parts[1]}-${parts[2]}');
-          }
-        }
-      }
+      }).toList();
+
+      setState(() {
+        _gpaData = filteredData;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+        _errorMessage = e.toString().replaceAll('Exception: ', '');
+      });
     }
-    final sortedYears = allYears.toList()..sort();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return _buildLoadingWidget();
+    }
+
+    if (_errorMessage != null || _gpaData == null || _gpaData!.isEmpty) {
+      return _buildErrorWidget();
+    }
+
+    // Sắp xếp dữ liệu theo năm học và học kỳ
+    final sortedData = List<ClassSemesterGPAResponse>.from(_gpaData!)
+      ..sort((a, b) {
+        final yearCompare = a.tenNamHoc.compareTo(b.tenNamHoc);
+        if (yearCompare != 0) return yearCompare;
+        return a.maHocKy.compareTo(b.maHocKy);
+      });
+
+    // Nhóm dữ liệu theo lớp
+    final dataByClass = <String, List<ClassSemesterGPAResponse>>{};
+    for (var item in sortedData) {
+      if (!dataByClass.containsKey(item.tenLop)) {
+        dataByClass[item.tenLop] = [];
+      }
+      dataByClass[item.tenLop]!.add(item);
+    }
+
+    // Tạo danh sách các điểm dữ liệu (semesters) với cả năm học và học kỳ
+    final allSemesters = <String>{};
+    for (var item in sortedData) {
+      allSemesters.add('${item.tenNamHoc}|${item.maHocKy}');
+    }
+    final sortedSemesters = allSemesters.toList()
+      ..sort((a, b) {
+        final partsA = a.split('|');
+        final partsB = b.split('|');
+        final yearCompare = partsA[0].compareTo(partsB[0]);
+        if (yearCompare != 0) return yearCompare;
+        return partsA[1].compareTo(partsB[1]);
+      });
 
     return FadeTransition(
-      opacity: animation ?? const AlwaysStoppedAnimation(1.0),
+      opacity: widget.animation ?? const AlwaysStoppedAnimation(1.0),
       child: SlideTransition(
-        position: animation != null
+        position: widget.animation != null
             ? Tween<Offset>(
                 begin: const Offset(0, 0.2),
                 end: Offset.zero,
               ).animate(CurvedAnimation(
-                parent: animation!,
+                parent: widget.animation!,
                 curve: Curves.easeOutCubic,
               ))
             : const AlwaysStoppedAnimation(Offset.zero),
@@ -185,177 +248,212 @@ class GPATrendChart extends StatelessWidget {
                           scrollDirection: Axis.horizontal,
                           clipBehavior: Clip.none,
                           child: SizedBox(
-                            width: (sortedYears.length * 60.0 + classes.length * 20.0).clamp(300.0, double.infinity).toDouble(),
+                            width: (sortedSemesters.length * 80.0 + widget.classes.length * 20.0).clamp(300.0, double.infinity).toDouble(),
                             height: 250,
                             child: LineChart(
-                          LineChartData(
-                            gridData: FlGridData(
-                              show: true,
-                              drawVerticalLine: false,
-                              horizontalInterval: 1,
-                              getDrawingHorizontalLine: (value) {
-                                return FlLine(
-                                  color: Colors.grey.shade200,
-                                  strokeWidth: 1,
-                                  dashArray: [5, 5],
-                                );
-                              },
-                            ),
-                            titlesData: FlTitlesData(
-                              leftTitles: AxisTitles(
-                                sideTitles: SideTitles(
-                                  showTitles: true,
-                                  reservedSize: 50,
-                                  interval: 1,
-                                  getTitlesWidget: (value, meta) {
-                                    return Padding(
-                                      padding: const EdgeInsets.only(right: 4),
-                                      child: Text(
-                                        value.toStringAsFixed(1),
-                                        style: TextStyle(
-                                          color: Colors.grey.shade600,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w500,
-                                        ),
+                              LineChartData(
+                                gridData: FlGridData(
+                                  show: true,
+                                  drawVerticalLine: false,
+                                  horizontalInterval: 1,
+                                  getDrawingHorizontalLine: (value) {
+                                    return FlLine(
+                                      color: Colors.grey.shade200,
+                                      strokeWidth: 1,
+                                      dashArray: [5, 5],
+                                    );
+                                  },
+                                ),
+                                titlesData: FlTitlesData(
+                                  leftTitles: AxisTitles(
+                                    sideTitles: SideTitles(
+                                      showTitles: true,
+                                      reservedSize: 50,
+                                      interval: 2,
+                                      getTitlesWidget: (value, meta) {
+                                        // Chỉ hiển thị các giá trị: 0, 2, 4, 6, 8, 10
+                                        if (value == 0 || value == 2 || value == 4 || value == 6 || value == 8 || value == 10) {
+                                          return Padding(
+                                            padding: const EdgeInsets.only(right: 4),
+                                            child: Text(
+                                              value.toStringAsFixed(0),
+                                              style: TextStyle(
+                                                color: Colors.grey.shade600,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                        return const Text('');
+                                      },
+                                    ),
+                                  ),
+                                  bottomTitles: AxisTitles(
+                                    sideTitles: SideTitles(
+                                      showTitles: true,
+                                      reservedSize: 100,
+                                      interval: 1,
+                                      getTitlesWidget: (value, meta) {
+                                        if (value.toInt() < sortedSemesters.length) {
+                                          final semesterKey = sortedSemesters[value.toInt()];
+                                          final parts = semesterKey.split('|');
+                                          final namHoc = parts[0];
+                                          final hocKy = parts[1];
+                                          
+                                          return Padding(
+                                            padding: const EdgeInsets.only(top: 8),
+                                            child: RotatedBox(
+                                              quarterTurns: -45,
+                                              child: Text(
+                                                '$namHoc\n$hocKy',
+                                                textAlign: TextAlign.center,
+                                                style: TextStyle(
+                                                  color: Colors.grey.shade700,
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                        return const Text('');
+                                      },
+                                    ),
+                                  ),
+                                  rightTitles: const AxisTitles(
+                                    sideTitles: SideTitles(showTitles: false),
+                                  ),
+                                  topTitles: const AxisTitles(
+                                    sideTitles: SideTitles(showTitles: false),
+                                  ),
+                                ),
+                                borderData: FlBorderData(
+                                  show: true,
+                                  border: Border(
+                                    bottom: BorderSide(
+                                      color: Colors.grey.shade300,
+                                      width: 1,
+                                    ),
+                                    left: BorderSide(
+                                      color: Colors.grey.shade300,
+                                      width: 1,
+                                    ),
+                                  ),
+                                ),
+                                lineBarsData: widget.classes.asMap().entries.map((entry) {
+                                  final colors = [
+                                    Colors.teal.shade600,
+                                    Colors.blue.shade600,
+                                    Colors.purple.shade600,
+                                    Colors.orange.shade600,
+                                  ];
+                                  final color = colors[entry.key % colors.length];
+                                  
+                                  // Tìm dữ liệu từ API cho lớp này
+                                  final classData = dataByClass[entry.value.tenLop] ?? 
+                                                   dataByClass[entry.value.maLop] ??
+                                                   [];
+                                  
+                                  final spots = sortedSemesters.asMap().entries.map((semesterEntry) {
+                                    final semesterKey = semesterEntry.value;
+                                    final parts = semesterKey.split('|');
+                                    final namHoc = parts[0];
+                                    final hocKy = parts[1];
+                                    
+                                    // Tìm dữ liệu GPA cho semester này
+                                    final gpaItem = classData.firstWhere(
+                                      (item) => item.tenNamHoc == namHoc && item.maHocKy == hocKy,
+                                      orElse: () => ClassSemesterGPAResponse(
+                                        tenLop: entry.value.tenLop,
+                                        tenNamHoc: namHoc,
+                                        maHocKy: hocKy,
+                                        gpa: 0.0,
                                       ),
                                     );
-                                  },
-                                ),
-                              ),
-                              bottomTitles: AxisTitles(
-                                sideTitles: SideTitles(
-                                  showTitles: true,
-                                  reservedSize: 70,
-                                  interval: 1,
-                                  getTitlesWidget: (value, meta) {
-                                    if (value.toInt() < sortedYears.length) {
-                                      final year = sortedYears[value.toInt()];
-                                      // Format năm học: "2023-2024" -> "2023 - 2024"
-                                      String formattedYear = year;
-                                      if (year.contains('-') && !year.contains(' - ')) {
-                                        final parts = year.split('-');
-                                        if (parts.length >= 2) {
-                                          formattedYear = '${parts[0]} - ${parts[1]}';
-                                        }
-                                      }
-                                      
-                                      return RotatedBox(
-                                        quarterTurns: -45,
-                                        child: Text(
-                                          formattedYear,
-                                          textAlign: TextAlign.center,
-                                          style: TextStyle(
-                                            color: Colors.grey.shade700,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      );
-                                    }
-                                    return const Text('');
-                                  },
-                                ),
-                              ),
-                              rightTitles: const AxisTitles(
-                                sideTitles: SideTitles(showTitles: false),
-                              ),
-                              topTitles: const AxisTitles(
-                                sideTitles: SideTitles(showTitles: false),
-                              ),
-                            ),
-                            borderData: FlBorderData(
-                              show: true,
-                              border: Border(
-                                bottom: BorderSide(
-                                  color: Colors.grey.shade300,
-                                  width: 1,
-                                ),
-                                left: BorderSide(
-                                  color: Colors.grey.shade300,
-                                  width: 1,
-                                ),
-                              ),
-                            ),
-                            lineBarsData: classes.asMap().entries.map((entry) {
-                              final colors = [
-                                Colors.teal.shade600,
-                                Colors.blue.shade600,
-                                Colors.purple.shade600,
-                                Colors.orange.shade600,
-                              ];
-                              final color = colors[entry.key % colors.length];
-                              
-                              // Tìm dữ liệu từ API cho lớp này
-                              final gpaTrend = gpaTrendByClass?.firstWhere(
-                                (t) {
-                                  // So sánh với nhiều cách để đảm bảo match
-                                  return t.tenLop == entry.value.tenLop ||
-                                         t.tenLop == entry.value.maLop ||
-                                         t.tenLop.trim() == entry.value.tenLop.trim() ||
-                                         t.tenLop.trim() == entry.value.maLop.trim() ||
-                                         t.tenLop.trim().toLowerCase() == entry.value.tenLop.trim().toLowerCase() ||
-                                         t.tenLop.trim().toLowerCase() == entry.value.maLop.trim().toLowerCase();
-                                },
-                                orElse: () => ClassGPATrendResponse(tenLop: entry.value.tenLop, gpaByYear: {}),
-                              );
-                              
-                              final spots = sortedYears.asMap().entries.map((yearEntry) {
-                                final year = yearEntry.value;
-                                double? gpa;
-                                
-                                // Ưu tiên lấy từ API
-                                if (gpaTrend != null && gpaTrend.gpaByYear.containsKey(year)) {
-                                  gpa = gpaTrend.gpaByYear[year];
-                                } else {
-                                  // Fallback: tìm từ semesterData
-                                  final semester = entry.value.semesterData.firstWhere(
-                                    (s) => s.hocKy.contains(year),
-                                    orElse: () => entry.value.semesterData.first,
-                                  );
-                                  gpa = semester.gpa;
-                                }
-                                
-                                // Nếu gpa là null, không hiển thị điểm đó
-                                if (gpa == null) {
-                                  return null;
-                                }
-                                
-                                return FlSpot(yearEntry.key.toDouble(), gpa);
-                              }).where((spot) => spot != null).cast<FlSpot>().toList(); // Chỉ lấy các điểm có giá trị
+                                    
+                                    return FlSpot(semesterEntry.key.toDouble(), gpaItem.gpa);
+                                  }).toList();
 
-                              return LineChartBarData(
-                                spots: spots,
-                                isCurved: true,
-                                color: color,
-                                barWidth: 3,
-                                dotData: FlDotData(
-                                  show: true,
-                                  getDotPainter: (spot, percent, barData, index) {
-                                    return FlDotCirclePainter(
-                                      radius: 5,
-                                      color: color,
-                                      strokeWidth: 2,
-                                      strokeColor: Colors.white,
-                                    );
-                                  },
+                                  return LineChartBarData(
+                                    spots: spots,
+                                    isCurved: true,
+                                    color: color,
+                                    barWidth: 3,
+                                    dotData: FlDotData(
+                                      show: true,
+                                      getDotPainter: (spot, percent, barData, index) {
+                                        return FlDotCirclePainter(
+                                          radius: 5,
+                                          color: color,
+                                          strokeWidth: 2,
+                                          strokeColor: Colors.white,
+                                        );
+                                      },
+                                    ),
+                                    belowBarData: BarAreaData(
+                                      show: true,
+                                      color: color.withValues(alpha: 0.1),
+                                    ),
+                                  );
+                                }).toList(),
+                                minY: 0.0,
+                                maxY: 10.0,
+                                lineTouchData: LineTouchData(
+                                  touchTooltipData: LineTouchTooltipData(
+                                    getTooltipColor: (touchedSpot) => Colors.white,
+                                    tooltipRoundedRadius: 8,
+                                    tooltipPadding: const EdgeInsets.all(12),
+                                    tooltipMargin: 8,
+                                    getTooltipItems: (List<LineBarSpot> touchedSpots) {
+                                      return touchedSpots.map((LineBarSpot touchedSpot) {
+                                        final index = touchedSpot.x.toInt();
+                                        if (index < sortedSemesters.length) {
+                                          final semesterKey = sortedSemesters[index];
+                                          final parts = semesterKey.split('|');
+                                          final namHoc = parts[0];
+                                          final hocKy = parts[1];
+                                          
+                                          // Tìm lớp tương ứng
+                                          final classIndex = touchedSpot.barIndex;
+                                          if (classIndex < widget.classes.length) {
+                                            final classModel = widget.classes[classIndex];
+                                            final classData = dataByClass[classModel.tenLop] ?? 
+                                                             dataByClass[classModel.maLop] ??
+                                                             [];
+                                            final gpaItem = classData.firstWhere(
+                                              (item) => item.tenNamHoc == namHoc && item.maHocKy == hocKy,
+                                              orElse: () => ClassSemesterGPAResponse(
+                                                tenLop: classModel.tenLop,
+                                                tenNamHoc: namHoc,
+                                                maHocKy: hocKy,
+                                                gpa: 0.0,
+                                              ),
+                                            );
+                                            
+                                            return LineTooltipItem(
+                                              '$namHoc\n$hocKy\nGPA: ${gpaItem.gpa.toStringAsFixed(2)}',
+                                              const TextStyle(
+                                                color: Colors.black87,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 14,
+                                              ),
+                                            );
+                                          }
+                                        }
+                                        return LineTooltipItem(
+                                          'GPA: ${touchedSpot.y.toStringAsFixed(2)}',
+                                          const TextStyle(
+                                            color: Colors.black87,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                          ),
+                                        );
+                                      }).toList();
+                                    },
+                                  ),
                                 ),
-                                belowBarData: BarAreaData(
-                                  show: true,
-                                  color: color.withValues(alpha: 0.1),
-                                ),
-                              );
-                            }).toList(),
-                            minY: 0.0, // Set minY = 0
-                            maxY: 10.0, // Set maxY = 10
-                            lineTouchData: LineTouchData(
-                              touchTooltipData: LineTouchTooltipData(
-                                getTooltipColor: (touchedSpot) => Colors.white,
-                                tooltipRoundedRadius: 8,
-                                tooltipPadding: const EdgeInsets.all(12),
-                                tooltipMargin: 8,
                               ),
-                            ),
-                          ),
                             ),
                           ),
                         ),
@@ -365,6 +463,57 @@ class GPATrendChart extends StatelessWidget {
                 ),
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingWidget() {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        height: 400,
+        child: Center(
+          child: LoadingAnimationWidget.staggeredDotsWave(
+            color: Colors.teal.shade600,
+            size: 50,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorWidget() {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        height: 400,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, size: 40, color: Colors.red.shade400),
+              const SizedBox(height: 10),
+              Text(
+                _errorMessage ?? 'Không thể tải dữ liệu xu hướng GPA.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 10),
+              ElevatedButton(
+                onPressed: _loadGPAData,
+                child: const Text('Thử lại'),
+              ),
+            ],
           ),
         ),
       ),

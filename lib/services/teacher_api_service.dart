@@ -244,7 +244,33 @@ class TeacherApiService {
     }
   }
 
-  // 8. GPA trung bình theo lớp Môn học, học kỳ, năm học
+  // 8. GPA trung bình theo lớp, học kỳ, năm học
+  static Future<List<ClassSemesterGPAResponse>> getClassGPABySemesterAndYear() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/giangvien/GPA-Trung-Binh-Theo-Lop-Hoc-Ky-Nam-Hoc'),
+        headers: await getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> jsonData = jsonDecode(response.body);
+        return jsonData.map((json) => ClassSemesterGPAResponse.fromJson(json)).toList();
+      } else if (response.statusCode == 401) {
+        throw Exception('401: Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+      } else if (response.statusCode == 404) {
+        throw Exception('404: Không tìm thấy dữ liệu.');
+      } else {
+        throw Exception('Lỗi API: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      if (e.toString().contains('access token') || e.toString().contains('hết hạn')) {
+        rethrow;
+      }
+      throw Exception('Lỗi kết nối: ${e.toString()}');
+    }
+  }
+
+  // 9. GPA trung bình theo lớp Môn học, học kỳ, năm học
   static Future<List<ClassSubjectGPAResponse>> getClassSubjectGPA() async {
     try {
       final response = await http.get(
@@ -426,7 +452,7 @@ class TeacherApiService {
     }
   }
 
-  // 15. Mối tương quan giữa điểm rèn luyện trung bình và GPA trung bình
+  // 15. Mối tương quan giữa điểm rèn luyện trung bình và GPA trung bình (theo lớp)
   static Future<List<ClassGPAConductCorrelationResponse>> getClassGPAConductCorrelation() async {
     try {
       final response = await http.get(
@@ -437,6 +463,32 @@ class TeacherApiService {
       if (response.statusCode == 200) {
         final List<dynamic> jsonData = jsonDecode(response.body);
         return jsonData.map((json) => ClassGPAConductCorrelationResponse.fromJson(json)).toList();
+      } else if (response.statusCode == 401) {
+        throw Exception('401: Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+      } else if (response.statusCode == 404) {
+        throw Exception('404: Không tìm thấy dữ liệu.');
+      } else {
+        throw Exception('Lỗi API: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      if (e.toString().contains('access token') || e.toString().contains('hết hạn')) {
+        rethrow;
+      }
+      throw Exception('Lỗi kết nối: ${e.toString()}');
+    }
+  }
+
+  // 16. Mối tương quan giữa điểm rèn luyện và GPA (theo sinh viên)
+  static Future<List<StudentGPAConductCorrelationResponse>> getStudentGPAConductCorrelation() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/giangvien/Moi-Tuong-Quan-Giua-Diem-Ren-Luyen-Trung-Binh-Va-GPA-Trung-Binh'),
+        headers: await getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> jsonData = jsonDecode(response.body);
+        return jsonData.map((json) => StudentGPAConductCorrelationResponse.fromJson(json)).toList();
       } else if (response.statusCode == 401) {
         throw Exception('401: Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
       } else if (response.statusCode == 404) {
@@ -722,6 +774,32 @@ class TeacherApiService {
       if (response.statusCode == 200) {
         final List<dynamic> jsonData = jsonDecode(response.body);
         return jsonData.map((json) => SubjectPassRateResponse.fromJson(json)).toList();
+      } else if (response.statusCode == 401) {
+        throw Exception('401: Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+      } else if (response.statusCode == 404) {
+        throw Exception('404: Không tìm thấy dữ liệu.');
+      } else {
+        throw Exception('Lỗi API: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      if (e.toString().contains('access token') || e.toString().contains('hết hạn')) {
+        rethrow;
+      }
+      throw Exception('Lỗi kết nối: ${e.toString()}');
+    }
+  }
+
+  // Tỷ lệ qua môn theo lớp học học kỳ
+  static Future<List<SubjectPassRateByClassResponse>> getSubjectPassRateByClass() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/giangvien/Ty-Le-qua-mon-theo-lop-hoc-hoc-ky'),
+        headers: await getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> jsonData = jsonDecode(response.body);
+        return jsonData.map((json) => SubjectPassRateByClassResponse.fromJson(json)).toList();
       } else if (response.statusCode == 401) {
         throw Exception('401: Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
       } else if (response.statusCode == 404) {
@@ -1304,6 +1382,9 @@ class SubjectFailRateHighResponse {
   final String tenNamHoc;
   final String tenHocKy;
   final double tyLeRot;
+  final int tongSv;
+  final int svRot;
+  final double dtb;
 
   SubjectFailRateHighResponse({
     required this.tenLop,
@@ -1311,6 +1392,9 @@ class SubjectFailRateHighResponse {
     required this.tenNamHoc,
     required this.tenHocKy,
     required this.tyLeRot,
+    required this.tongSv,
+    required this.svRot,
+    required this.dtb,
   });
 
   factory SubjectFailRateHighResponse.fromJson(Map<String, dynamic> json) {
@@ -1320,6 +1404,9 @@ class SubjectFailRateHighResponse {
       tenNamHoc: json['Ten Nam Hoc'] ?? '',
       tenHocKy: json['Ten Hoc Ky'] ?? '',
       tyLeRot: (json['Ty_Le_Rot'] ?? 0.0).toDouble(),
+      tongSv: json['Tong_SV'] ?? 0,
+      svRot: json['SV_Rot'] ?? 0,
+      dtb: (json['DTB'] ?? 0.0).toDouble(),
     );
   }
 }
@@ -1330,6 +1417,9 @@ class SubjectFailRateLowResponse {
   final String tenNamHoc;
   final String tenHocKy;
   final double tyLeRot;
+  final int tongSv;
+  final int svRot;
+  final double dtb;
 
   SubjectFailRateLowResponse({
     required this.tenLop,
@@ -1337,6 +1427,9 @@ class SubjectFailRateLowResponse {
     required this.tenNamHoc,
     required this.tenHocKy,
     required this.tyLeRot,
+    required this.tongSv,
+    required this.svRot,
+    required this.dtb,
   });
 
   factory SubjectFailRateLowResponse.fromJson(Map<String, dynamic> json) {
@@ -1346,6 +1439,9 @@ class SubjectFailRateLowResponse {
       tenNamHoc: json['Ten Nam Hoc'] ?? '',
       tenHocKy: json['Ten Hoc Ky'] ?? '',
       tyLeRot: (json['Ty_Le_Rot'] ?? 0.0).toDouble(),
+      tongSv: json['Tong_SV'] ?? 0,
+      svRot: json['SV_Rot'] ?? 0,
+      dtb: (json['DTB'] ?? 0.0).toDouble(),
     );
   }
 }
@@ -1496,6 +1592,35 @@ class ClassGPAConductCorrelationResponse {
       tenLop: json['Ten Lop'] ?? '',
       gpaLop: (json['GPA_Lop'] ?? 0.0).toDouble(),
       drlLop: (json['DRL_Lop'] ?? 0.0).toDouble(),
+    );
+  }
+}
+
+class StudentGPAConductCorrelationResponse {
+  final String tenNamHoc;
+  final String tenHocKy;
+  final String tenLop;
+  final String hoTen;
+  final double gpa;
+  final double drl;
+
+  StudentGPAConductCorrelationResponse({
+    required this.tenNamHoc,
+    required this.tenHocKy,
+    required this.tenLop,
+    required this.hoTen,
+    required this.gpa,
+    required this.drl,
+  });
+
+  factory StudentGPAConductCorrelationResponse.fromJson(Map<String, dynamic> json) {
+    return StudentGPAConductCorrelationResponse(
+      tenNamHoc: json['Ten Nam Hoc'] ?? '',
+      tenHocKy: json['Ten Hoc Ky'] ?? '',
+      tenLop: json['Ten Lop'] ?? '',
+      hoTen: json['Ho Ten'] ?? '',
+      gpa: (json['GPA'] ?? 0.0).toDouble(),
+      drl: (json['DRL'] ?? 0.0).toDouble(),
     );
   }
 }
@@ -1702,6 +1827,39 @@ class SubjectPassRateResponse {
       tenHocKy: json['Ten Hoc Ky'] ?? '',
       tenMonHoc: json['Ten Mon Hoc'] ?? '',
       soSV_Dau: json['SoSV_Dau'] ?? 0,
+    );
+  }
+}
+
+// Tỷ lệ qua môn theo lớp học học kỳ
+class SubjectPassRateByClassResponse {
+  final String tenNamHoc;
+  final String tenHocKy;
+  final String tenLop;
+  final String tenMonHoc;
+  final int tong_SV_Mon;
+  final int sv_QuaMon;
+  final double tiLe_QuaMon;
+
+  SubjectPassRateByClassResponse({
+    required this.tenNamHoc,
+    required this.tenHocKy,
+    required this.tenLop,
+    required this.tenMonHoc,
+    required this.tong_SV_Mon,
+    required this.sv_QuaMon,
+    required this.tiLe_QuaMon,
+  });
+
+  factory SubjectPassRateByClassResponse.fromJson(Map<String, dynamic> json) {
+    return SubjectPassRateByClassResponse(
+      tenNamHoc: json['Ten Nam Hoc'] ?? '',
+      tenHocKy: json['Ten Hoc Ky'] ?? '',
+      tenLop: json['Ten Lop'] ?? '',
+      tenMonHoc: json['Ten Mon Hoc'] ?? '',
+      tong_SV_Mon: json['Tong_SV_Mon'] ?? 0,
+      sv_QuaMon: json['SV_QuaMon'] ?? 0,
+      tiLe_QuaMon: (json['TiLe_QuaMon'] ?? 0.0).toDouble(),
     );
   }
 }

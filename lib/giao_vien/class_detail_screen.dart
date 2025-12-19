@@ -3,8 +3,9 @@ import '../models/teacher_advisor.dart';
 import '../models/class_model.dart';
 import '../widgets/salomon_tab_bar_provider.dart';
 import 'widgets/gpa_trend_chart.dart';
-import 'widgets/gpa_by_semester_year_chart.dart';
 import 'widgets/subject_fail_rate_card.dart';
+import 'widgets/highest_fail_rate_subject_card.dart';
+import 'widgets/lowest_fail_rate_subject_card.dart';
 import 'widgets/gpa_comparison_chart.dart';
 import 'widgets/academic_level_pie_chart.dart';
 import 'widgets/subject_grade_distribution_pie_chart.dart';
@@ -16,6 +17,8 @@ import 'widgets/pass_fail_donut_chart.dart';
 import 'widgets/conduct_gpa_scatter_chart.dart';
 import 'widgets/gender_pie_chart.dart';
 import 'widgets/student_list_widget.dart';
+import 'widgets/class_gpa_conduct_scatter_chart.dart';
+import 'widgets/subject_pass_rate_by_class_chart.dart';
 
 class ClassDetailScreen extends StatefulWidget {
   final TeacherAdvisor teacherData;
@@ -47,7 +50,7 @@ class _ClassDetailScreenState extends State<ClassDetailScreen>
     );
 
     _animations = List.generate(
-      15,
+      18,
       (index) {
         final start = (index * 0.08).clamp(0.0, 1.0);
         final end = (0.5 + (index * 0.05)).clamp(0.0, 1.0);
@@ -199,31 +202,29 @@ class _ClassDetailScreenState extends State<ClassDetailScreen>
                 ),
                 const SizedBox(height: 16),
 
-                // 4. Xu hướng GPA trong lớp đó (từ API Xu-Huong-GPA-Trung-Binh-Theo-Lop)
+                // 4. Xu hướng GPA trong lớp đó (từ API GPA-Trung-Binh-Theo-Lop-Hoc-Ky-Nam-Hoc)
                 GPATrendChart(
                   classes: [widget.classModel],
-                  gpaTrendByClass: widget.teacherData.gpaTrendByClass,
                   animation: _animations[3],
+                ),
+                const SizedBox(height: 16),
+
+                // 4b. Tương quan điểm rèn luyện và GPA (có combobox lọc)
+                ClassGPAConductScatterChart(
+                  classModel: widget.classModel,
+                  animation: _animations[4],
                 ),
                 const SizedBox(height: 16),
 
                 // 5. GPA trung bình các môn (từ API GPA-Trung-Binh-Theo-Lop-Mon-Hoc-Hoc-Ky-Nam-Hoc)
                 SubjectGPAChart(
                   selectedClass: widget.classModel,
-                  animation: _animations[4],
-                  teacherData: widget.teacherData,
-                ),
-                const SizedBox(height: 16),
-
-                // 6. GPA theo học kỳ năm học (từ API GPA-Trung-Binh-Theo-Lop-Mon-Hoc-Hoc-Ky-Nam-Hoc)
-                GPABySemesterYearChart(
-                  selectedClass: widget.classModel,
                   animation: _animations[5],
                   teacherData: widget.teacherData,
                 ),
                 const SizedBox(height: 16),
 
-                // 7. Tương quan điểm rèn luyện và GPA trong lớp đó
+                // 6. Tương quan điểm rèn luyện và GPA trong lớp đó
                 // ConductGPAScatterChart(
                 //   classes: [widget.classModel],
                 //   animation: _animations[5],
@@ -231,59 +232,82 @@ class _ClassDetailScreenState extends State<ClassDetailScreen>
                 // const SizedBox(height: 16),
 
                 // 8. Môn học rớt nhiều nhất (theo lớp)
-                SubjectFailRateCard(
-                  title: 'Môn học rớt nhiều nhất',
-                  subjectName: _getMostFrequentSubjectByClassHigh(
-                    widget.teacherData.subjectFailRateHighs,
-                    widget.classModel,
-                  ),
-                  icon: Icons.trending_down,
-                  color: Colors.red,
+                // SubjectFailRateCard(
+                //   title: 'Môn học rớt nhiều nhất',
+                //   subjectName: _getMostFrequentSubjectByClassHigh(
+                //     widget.teacherData.subjectFailRateHighs,
+                //     widget.classModel,
+                //   ),
+                //   icon: Icons.trending_down,
+                //   color: Colors.red,
+                //   animation: _animations[6],
+                // ),
+                // const SizedBox(height: 12),
+                //
+                // // 8b. Môn học rớt thấp nhất (theo lớp)
+                // SubjectFailRateCard(
+                //   title: 'Môn học rớt thấp nhất',
+                //   subjectName: _getMostFrequentSubjectByClassLow(
+                //     widget.teacherData.subjectFailRateLows,
+                //     widget.classModel,
+                //   ),
+                //   icon: Icons.trending_up,
+                //   color: Colors.green,
+                //   animation: _animations[7],
+                // ),
+                // const SizedBox(height: 16),
+
+                // 7. Môn học rớt cao nhất (chi tiết)
+                HighestFailRateSubjectCard(
+                  classModel: widget.classModel,
+                  semester: widget.semester,
                   animation: _animations[6],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
 
-                // 8b. Môn học rớt thấp nhất (theo lớp)
-                SubjectFailRateCard(
-                  title: 'Môn học rớt thấp nhất',
-                  subjectName: _getMostFrequentSubjectByClassLow(
-                    widget.teacherData.subjectFailRateLows,
-                    widget.classModel,
-                  ),
-                  icon: Icons.trending_up,
-                  color: Colors.green,
+                // 7b. Môn học rớt thấp nhất (chi tiết)
+                LowestFailRateSubjectCard(
+                  classModel: widget.classModel,
+                  semester: widget.semester,
                   animation: _animations[7],
                 ),
                 const SizedBox(height: 16),
 
-                // 9. Điểm trung bình môn so với GPA toàn khóa (từ API Diem-Trung-Binh-Mon-So-Voi-GPA-Toan-Khoa)
-                GPAComparisonChart(
-                  selectedClass: widget.classModel,
+                // 7c. Tỷ lệ sinh viên đậu theo môn
+                SubjectPassRateByClassChart(
+                  classModel: widget.classModel,
                   animation: _animations[8],
-                  teacherData: widget.teacherData,
                 ),
                 const SizedBox(height: 16),
 
-                // 10. Tỷ lệ phần trăm học lực theo lớp học kỳ (từ API Ty-Le-Phan-Tram-Hoc-Luc-Theo-Lop-Hoc-Ky)
-                AcademicLevelPieChart(
+                // 8. Điểm trung bình môn so với GPA toàn khóa (từ API Diem-Trung-Binh-Mon-So-Voi-GPA-Toan-Khoa)
+                GPAComparisonChart(
                   selectedClass: widget.classModel,
                   animation: _animations[9],
                   teacherData: widget.teacherData,
                 ),
                 const SizedBox(height: 16),
 
-                // 11. Tỷ lệ phần trăm xếp loại theo môn (từ API Ty-Le-Phan-Tram-Loai-Theo-Mon-Hoc-Lop)
-                SubjectGradeDistributionPieChart(
+                // 9. Tỷ lệ phần trăm học lực theo lớp học kỳ (từ API Ty-Le-Phan-Tram-Hoc-Luc-Theo-Lop-Hoc-Ky)
+                AcademicLevelPieChart(
                   selectedClass: widget.classModel,
                   animation: _animations[10],
                   teacherData: widget.teacherData,
                 ),
                 const SizedBox(height: 16),
 
-                // 12. Tỷ lệ phần trăm qua/rớt môn (từ API Ty-Le-Phan-Tram-Qua-Rot-Mon-Theo-Lop-Hoc-Ky-Nam-Hoc)
-                SubjectPassFailRatePieChart(
+                // 10. Tỷ lệ phần trăm xếp loại theo môn (từ API Ty-Le-Phan-Tram-Loai-Theo-Mon-Hoc-Lop)
+                SubjectGradeDistributionPieChart(
                   selectedClass: widget.classModel,
                   animation: _animations[11],
+                  teacherData: widget.teacherData,
+                ),
+                const SizedBox(height: 16),
+
+                // 11. Tỷ lệ phần trăm qua/rớt môn (từ API Ty-Le-Phan-Tram-Qua-Rot-Mon-Theo-Lop-Hoc-Ky-Nam-Hoc)
+                SubjectPassFailRatePieChart(
+                  selectedClass: widget.classModel,
+                  animation: _animations[12],
                   teacherData: widget.teacherData,
                 ),
 

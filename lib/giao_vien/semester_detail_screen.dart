@@ -6,9 +6,9 @@ import '../widgets/salomon_tab_bar_wrapper.dart';
 import 'class_detail_screen.dart';
 import 'widgets/students_count_chart.dart';
 import 'widgets/gender_chart.dart';
-import 'widgets/gpa_trend_chart.dart';
 import 'widgets/pass_fail_donut_chart.dart';
 import 'widgets/conduct_gpa_scatter_chart.dart';
+import 'widgets/student_gpa_conduct_scatter_chart.dart';
 import 'widgets/gender_pie_chart.dart';
 import 'widgets/subject_fail_rate_card.dart';
 import 'widgets/class_overall_gpa_chart.dart';
@@ -272,15 +272,7 @@ class _SemesterDetailScreenState extends State<SemesterDetailScreen>
                 ),
                 const SizedBox(height: 16),
 
-                // 6. Xu hướng GPA
-                GPATrendChart(
-                  classes: classesInSemester,
-                  gpaTrendByClass: widget.teacherData.gpaTrendByClass,
-                  animation: _animations[5],
-                ),
-                const SizedBox(height: 16),
-
-                // 7. Tỷ lệ qua/rớt
+                // 6. Tỷ lệ qua/rớt
                 PassFailDonutChart(
                   classes: classesInSemester,
                   semester: widget.semester,
@@ -289,14 +281,15 @@ class _SemesterDetailScreenState extends State<SemesterDetailScreen>
                 ),
                 const SizedBox(height: 16),
 
-                // 8. Phân tích GPA và hạnh kiểm
-                ConductGPAScatterChart(
+                // 7. Tương quan điểm rèn luyện và GPA
+                StudentGPAConductScatterChart(
                   classes: classesInSemester,
+                  semester: widget.semester,
                   animation: _animations[7],
                 ),
                 const SizedBox(height: 16),
 
-                // 9. Môn học có tỷ lệ rớt cao nhất
+                // 8. Môn học có tỷ lệ rớt cao nhất
                 SubjectFailRateCard(
                   title: 'Môn học rớt nhiều nhất',
                   subjectName: _getMostFrequentSubjectBySemesterHigh(
@@ -308,7 +301,7 @@ class _SemesterDetailScreenState extends State<SemesterDetailScreen>
                   animation: _animations[8],
                 ),
                 const SizedBox(height: 12),
-                // 9b. Môn học có tỷ lệ rớt thấp nhất
+                // 8b. Môn học có tỷ lệ rớt thấp nhất
                 SubjectFailRateCard(
                   title: 'Môn học rớt thấp nhất',
                   subjectName: _getMostFrequentSubjectBySemesterLow(
@@ -321,7 +314,7 @@ class _SemesterDetailScreenState extends State<SemesterDetailScreen>
                 ),
                 const SizedBox(height: 16),
 
-                // 10. GPA tổng thể theo lớp
+                // 9. GPA tổng thể theo lớp
                 ClassOverallGPAChart(
                   classes: classesInSemester,
                   animation: _animations[9],
@@ -329,7 +322,7 @@ class _SemesterDetailScreenState extends State<SemesterDetailScreen>
                 ),
                 const SizedBox(height: 16),
 
-                // 11. GPA môn học theo học kỳ
+                // 10. GPA môn học theo học kỳ
                 SubjectGPABySemesterChart(
                   classes: classesInSemester,
                   semester: widget.semester,
@@ -338,7 +331,7 @@ class _SemesterDetailScreenState extends State<SemesterDetailScreen>
                 ),
                 const SizedBox(height: 16),
 
-                // 12. Tỷ lệ qua/rớt môn theo học kỳ
+                // 11. Tỷ lệ qua/rớt môn theo học kỳ
                 PassFailRateBySemesterChart(
                   classes: classesInSemester,
                   semester: widget.semester,
