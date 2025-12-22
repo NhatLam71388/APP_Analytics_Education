@@ -1,9 +1,14 @@
 import 'dart:ui';
+import 'dart:async';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
+import 'package:record/record.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../services/chatbot_api_service.dart';
 import '../models/chatbot_response.dart';
+import '../services/xunfei_ist_service.dart';
 
 class ChatMessage {
   final String text;
@@ -36,8 +41,14 @@ class _AIAssistantScreenState extends State<AIAssistantScreen>
   bool _isLoading = false;
   String? _errorMessage;
   bool _isTtsEnabled = true; // Mặc định bật TTS
+  bool _isRecording = false; // Trạng thái ghi âm
 
   late FlutterTts _flutterTts;
+  late AudioRecorder _audioRecorder;
+  late XunfeiISTService _xunfeiService;
+  StreamSubscription<String>? _textSubscription;
+  StreamSubscription<String>? _statusSubscription;
+  StreamSubscription<List<int>>? _audioStreamSubscription;
   late AnimationController _fadeController;
   late AnimationController _slideController;
   late AnimationController _typingController;
@@ -47,7 +58,7 @@ class _AIAssistantScreenState extends State<AIAssistantScreen>
   @override
   void initState() {
     super.initState();
-    _initTts();
+    _initializeServices();
     _fadeController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
@@ -76,31 +87,92 @@ class _AIAssistantScreenState extends State<AIAssistantScreen>
     _fadeController.forward();
     _slideController.forward();
 
-    // Thêm welcome message
-    _messages.add(ChatMessage(
-      text: 'Xin chào! Tôi là trợ lý AI của bạn. Tôi có thể giúp gì cho bạn?',
-      isUser: false,
-      timestamp: DateTime.now(),
-    ));
+    // Thêm welcome message sau khi services đã được khởi tạo
+    final welcomeText = 'Xin chào! Tôi là trợ lý AI của bạn. Tôi có thể giúp gì cho bạn?';
+    if (mounted) {
+      setState(() {
+        _messages.add(ChatMessage(
+          text: welcomeText,
+          isUser: false,
+          timestamp: DateTime.now(),
+        ));
+      });
+      
+      // Phát âm welcome message sau khi TTS đã được khởi tạo
+      // Đợi một chút để đảm bảo TTS đã sẵn sàng
+      Future.delayed(const Duration(milliseconds: 800)).then((_) {
+        if (mounted) {
+          _speak(welcomeText);
+        }
+      });
+    }
+  }
+
+  Future<void> _initializeServices() async {
+    // Khởi tạo TTS và Speech-to-Text
+    await _initTts();
+    _initSpeechToText();
   }
 
   Future<void> _initTts() async {
-    _flutterTts = FlutterTts();
+    try {
+      debugPrint('TTS: Initializing with flutter_tts ^4.2.3...');
+      _flutterTts = FlutterTts();
+      
+      // Xử lý khi hoàn thành phát âm
+      _flutterTts.setCompletionHandler(() {
+        debugPrint('TTS: Speech completed');
+      });
+      
+      // Xử lý lỗi
+      _flutterTts.setErrorHandler((msg) {
+        debugPrint("TTS Error Handler: $msg");
+      });
+      
+      // BẮT BUỘC: Phải gọi setLanguage("vi-VN") trước khi speak
+      // Theo tài liệu flutter_tts ^4.2.3 cho tiếng Việt
+      debugPrint('TTS: Setting language to vi-VN...');
+      await _flutterTts.setLanguage("vi-VN");
+      debugPrint('TTS: Language set to vi-VN successfully');
+      
+      // Cấu hình TTS
+      await _flutterTts.setSpeechRate(0.5); // Tốc độ nói (0.0 - 1.0)
+      await _flutterTts.setVolume(1.0); // Âm lượng (0.0 - 1.0)
+      await _flutterTts.setPitch(1.0); // Cao độ (0.5 - 2.0)
+      
+      debugPrint('TTS: Initialization completed successfully');
+    } catch (e) {
+      debugPrint('TTS: Initialization error: $e');
+      // Thử fallback với en-US nếu vi-VN không có
+      try {
+        debugPrint('TTS: Trying fallback to en-US...');
+        await _flutterTts.setLanguage("en-US");
+        await _flutterTts.setSpeechRate(0.5);
+        await _flutterTts.setVolume(1.0);
+        await _flutterTts.setPitch(1.0);
+        debugPrint('TTS: Fallback to en-US successful');
+      } catch (e2) {
+        debugPrint('TTS: Fallback also failed: $e2');
+      }
+    }
+  }
+
+  Future<void> _initSpeechToText() async {
+    _audioRecorder = AudioRecorder();
+    _xunfeiService = XunfeiISTService();
     
-    // Cấu hình TTS
-    await _flutterTts.setLanguage("vi-VN"); // Tiếng Việt
-    await _flutterTts.setSpeechRate(0.5); // Tốc độ nói (0.0 - 1.0)
-    await _flutterTts.setVolume(1.0); // Âm lượng (0.0 - 1.0)
-    await _flutterTts.setPitch(1.0); // Cao độ (0.5 - 2.0)
-    
-    // Xử lý khi hoàn thành phát âm
-    _flutterTts.setCompletionHandler(() {
-      // Có thể thêm logic khi phát xong
+    // Lắng nghe text được nhận dạng
+    _textSubscription = _xunfeiService.textStream.listen((text) {
+      if (mounted) {
+        setState(() {
+          _messageController.text += text;
+        });
+      }
     });
     
-    // Xử lý lỗi
-    _flutterTts.setErrorHandler((msg) {
-      debugPrint("TTS Error: $msg");
+    // Lắng nghe trạng thái
+    _statusSubscription = _xunfeiService.statusStream.listen((status) {
+      debugPrint('Xunfei Status: $status');
     });
   }
 
@@ -112,16 +184,37 @@ class _AIAssistantScreenState extends State<AIAssistantScreen>
     _slideController.dispose();
     _typingController.dispose();
     _flutterTts.stop();
+    _audioRecorder.dispose();
+    _textSubscription?.cancel();
+    _statusSubscription?.cancel();
+    _audioStreamSubscription?.cancel();
+    _xunfeiService.dispose();
     super.dispose();
   }
 
   Future<void> _speak(String text) async {
-    if (_isTtsEnabled && text.isNotEmpty) {
-      try {
-        await _flutterTts.speak(text);
-      } catch (e) {
-        debugPrint("Error speaking: $e");
+    if (!_isTtsEnabled) {
+      debugPrint('TTS: Disabled, skipping speech');
+      return;
+    }
+    
+    if (text.isEmpty) {
+      debugPrint('TTS: Empty text, skipping speech');
+      return;
+    }
+    
+    try {
+      debugPrint('TTS: Speaking text: $text');
+      // Với flutter_tts ^4.2.3, chỉ cần gọi speak() sau khi đã setLanguage
+      final result = await _flutterTts.speak(text);
+      
+      if (result == 1) {
+        debugPrint('TTS: speak() called successfully');
+      } else {
+        debugPrint('TTS: speak() returned error code: $result');
       }
+    } catch (e) {
+      debugPrint("TTS Error: $e");
     }
   }
 
@@ -130,6 +223,106 @@ class _AIAssistantScreenState extends State<AIAssistantScreen>
       await _flutterTts.stop();
     } catch (e) {
       debugPrint("Error stopping TTS: $e");
+    }
+  }
+
+  /// Bắt đầu ghi âm và nhận dạng giọng nói
+  Future<void> _startRecording() async {
+    // Kiểm tra quyền microphone
+    final status = await Permission.microphone.request();
+    if (!status.isGranted) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cần quyền truy cập microphone để sử dụng tính năng này'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
+    try {
+      // Kết nối Xunfei service
+      await _xunfeiService.connect();
+      
+      // Bắt đầu ghi âm với stream
+      final stream = await _audioRecorder.startStream(
+        const RecordConfig(
+          encoder: AudioEncoder.pcm16bits,
+          sampleRate: 16000,
+          numChannels: 1,
+        ),
+      );
+
+      setState(() {
+        _isRecording = true;
+      });
+
+      // Lắng nghe audio stream và gửi đến Xunfei
+      _audioStreamSubscription = stream.listen(
+        (data) {
+          if (_isRecording && _xunfeiService.isConnected) {
+            try {
+              _xunfeiService.sendAudioData(Uint8List.fromList(data));
+            } catch (e) {
+              debugPrint('Error sending audio data: $e');
+            }
+          }
+        },
+        onError: (error) {
+          debugPrint('Error in audio stream: $error');
+          if (mounted) {
+            setState(() {
+              _isRecording = false;
+            });
+          }
+        },
+        cancelOnError: false,
+      );
+    } catch (e) {
+      debugPrint('Error starting recording: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi khi bắt đầu ghi âm: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      setState(() {
+        _isRecording = false;
+      });
+    }
+  }
+
+  /// Dừng ghi âm và nhận dạng
+  Future<void> _stopRecording() async {
+    try {
+      // Hủy subscription audio stream
+      await _audioStreamSubscription?.cancel();
+      _audioStreamSubscription = null;
+      
+      if (await _audioRecorder.isRecording()) {
+        await _audioRecorder.stop();
+      }
+
+      // Gửi frame cuối cùng
+      _xunfeiService.sendFinalFrame();
+      
+      // Đợi một chút trước khi ngắt kết nối để nhận kết quả cuối cùng
+      await Future.delayed(const Duration(milliseconds: 1000));
+      
+      await _xunfeiService.disconnect();
+
+      setState(() {
+        _isRecording = false;
+      });
+    } catch (e) {
+      debugPrint('Error stopping recording: $e');
+      setState(() {
+        _isRecording = false;
+      });
     }
   }
 
@@ -371,6 +564,46 @@ class _AIAssistantScreenState extends State<AIAssistantScreen>
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
+                          // Nút microphone
+                          Container(
+                            decoration: BoxDecoration(
+                              color: _isRecording 
+                                  ? Colors.red.shade500 
+                                  : Colors.grey.shade200,
+                              borderRadius: BorderRadius.circular(26),
+                              boxShadow: _isRecording ? [
+                                BoxShadow(
+                                  color: Colors.red.withValues(alpha: 0.4),
+                                  blurRadius: 12,
+                                  spreadRadius: 2,
+                                ),
+                              ] : null,
+                            ),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: _isRecording ? _stopRecording : _startRecording,
+                                borderRadius: BorderRadius.circular(26),
+                                child: Container(
+                                  width: 52,
+                                  height: 52,
+                                  padding: const EdgeInsets.all(14),
+                                  child: _isRecording
+                                      ? const Icon(
+                                          Icons.mic,
+                                          color: Colors.white,
+                                          size: 24,
+                                        )
+                                      : Icon(
+                                          Icons.mic_none,
+                                          color: Colors.grey.shade700,
+                                          size: 24,
+                                        ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
                           Expanded(
                             child: Container(
                               constraints: const BoxConstraints(maxHeight: 120),

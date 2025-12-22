@@ -238,16 +238,6 @@ class _SemesterDetailScreenState extends State<SemesterDetailScreen>
                 ),
                 const SizedBox(height: 16),
 
-                // 2. Tỷ lệ sinh viên đậu theo từng môn
-                SubjectPassRateChart(
-                  classes: classesInSemester,
-                  semester: widget.semester,
-                  maleCount: maleCount,
-                  femaleCount: femaleCount,
-                  animation: _animations[1],
-                ),
-                const SizedBox(height: 16),
-
                 // 3. Danh sách các lớp trong kỳ
                 ClassListWidget(
                   classes: classesInSemester,
@@ -278,6 +268,16 @@ class _SemesterDetailScreenState extends State<SemesterDetailScreen>
                   semester: widget.semester,
                   teacherData: widget.teacherData,
                   animation: _animations[6],
+                ),
+                const SizedBox(height: 16),
+
+                // 6b. Tỷ lệ sinh viên đậu theo từng môn
+                SubjectPassRateChart(
+                  classes: classesInSemester,
+                  semester: widget.semester,
+                  maleCount: maleCount,
+                  femaleCount: femaleCount,
+                  animation: _animations[1],
                 ),
                 const SizedBox(height: 16),
 
@@ -323,13 +323,13 @@ class _SemesterDetailScreenState extends State<SemesterDetailScreen>
                 const SizedBox(height: 16),
 
                 // 10. GPA môn học theo học kỳ
-                SubjectGPABySemesterChart(
-                  classes: classesInSemester,
-                  semester: widget.semester,
-                  teacherData: widget.teacherData,
-                  animation: _animations[10],
-                ),
-                const SizedBox(height: 16),
+                // SubjectGPABySemesterChart(
+                //   classes: classesInSemester,
+                //   semester: widget.semester,
+                //   teacherData: widget.teacherData,
+                //   animation: _animations[10],
+                // ),
+                // const SizedBox(height: 16),
 
                 // 11. Tỷ lệ qua/rớt môn theo học kỳ
                 PassFailRateBySemesterChart(

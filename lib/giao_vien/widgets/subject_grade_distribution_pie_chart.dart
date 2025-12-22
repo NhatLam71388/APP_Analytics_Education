@@ -533,11 +533,13 @@ class _SubjectGradeDistributionPieChartState extends State<SubjectGradeDistribut
       );
     } else {
       // 4+ phần tử: sử dụng Wrap như cũ
-      return Wrap(
-        alignment: WrapAlignment.center,
-        spacing: 12,
-        runSpacing: 8,
-        children: legendItems,
+      return Center(
+        child: Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 12,
+          runSpacing: 8,
+          children: legendItems,
+        ),
       );
     }
   }

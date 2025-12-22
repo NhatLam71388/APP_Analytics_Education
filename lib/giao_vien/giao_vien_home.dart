@@ -161,7 +161,7 @@ class _GiaoVienHomeState extends State<GiaoVienHome>
           ),
           child: Center(
             child: LoadingAnimationWidget.staggeredDotsWave(
-              color: Colors.blue.shade600,
+              color: Colors.green,
               size: 50,
             ),
           ),

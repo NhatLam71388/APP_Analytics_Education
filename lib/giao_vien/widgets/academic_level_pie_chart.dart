@@ -568,12 +568,14 @@ class _AcademicLevelPieChartState extends State<AcademicLevelPieChart> {
         ],
       );
     } else {
-      // 4+ phần tử: sử dụng Wrap như cũ
-      return Wrap(
-        alignment: WrapAlignment.center,
-        spacing: 12,
-        runSpacing: 8,
-        children: legendItems,
+      // 4+ phần tử: sử dụng Wrap căn giữa
+      return Center(
+        child: Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 12,
+          runSpacing: 8,
+          children: legendItems,
+        ),
       );
     }
   }

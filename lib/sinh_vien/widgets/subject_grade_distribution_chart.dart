@@ -812,7 +812,7 @@ class _SubjectGradeDistributionChartState extends State<SubjectGradeDistribution
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  _buildLegendItem(Colors.orange, 'Trung bình', trungBinhPercent, trungBinh),
+                                  _buildLegendItem(Colors.orange, 'TB', trungBinhPercent, trungBinh),
                                   const SizedBox(height: 12),
                                   _buildLegendItem(Colors.red, 'Yếu', yeuPercent, yeu),
                                 ],

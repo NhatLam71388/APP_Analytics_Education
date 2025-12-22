@@ -105,6 +105,42 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  Future<void> _handleForgotPassword() async {
+    final username = _usernameController.text.trim();
+    
+    if (username.isEmpty) {
+      _showError('Vui lòng nhập tên đăng nhập (mã số sinh viên/giáo viên)');
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final result = await ApiService.forgotPassword(username);
+      
+      if (!mounted) return;
+
+      // Hiển thị thông báo thành công với message và hint
+      final successMessage = '${result['message']}\n${result['hint']}';
+      UserNotification.showSuccess(
+        context,
+        message: successMessage,
+        duration: const Duration(seconds: 6),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      _showError(e.toString().replaceAll('Exception: ', ''));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     Size size = MediaQuery.of(context).size;
@@ -200,11 +236,14 @@ class _LoginScreenState extends State<LoginScreen> {
                 Container(
                   alignment: Alignment.centerRight,
                   margin: const EdgeInsets.symmetric(horizontal: 40, vertical: 10),
-                  child: const Text(
-                    "Quên mật khẩu?",
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Color(0XFF2661FA)
+                  child: GestureDetector(
+                    onTap: _handleForgotPassword,
+                    child: const Text(
+                      "Quên mật khẩu?",
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Color(0XFF2661FA)
+                      ),
                     ),
                   ),
                 ),
@@ -253,28 +292,28 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                 ),
-                SizedBox(height: size.height * 0.02),
-                Container(
-                  alignment: Alignment.centerRight,
-                  margin: const EdgeInsets.symmetric(horizontal: 40, vertical: 10),
-                  child: GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const RegisterScreen())
-                      );
-                    },
-                    child: const Text(
-                      "Chưa có tài khoản? Đăng ký",
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF2661FA)
-                      ),
-                    ),
-                  ),
-                ),
-                SizedBox(height: size.height * 0.05),
+                // SizedBox(height: size.height * 0.02),
+                // Container(
+                //   alignment: Alignment.centerRight,
+                //   margin: const EdgeInsets.symmetric(horizontal: 40, vertical: 10),
+                //   child: GestureDetector(
+                //     onTap: () {
+                //       Navigator.push(
+                //         context,
+                //         MaterialPageRoute(builder: (context) => const RegisterScreen())
+                //       );
+                //     },
+                //     child: const Text(
+                //       "Chưa có tài khoản? Đăng ký",
+                //       style: TextStyle(
+                //         fontSize: 12,
+                //         fontWeight: FontWeight.bold,
+                //         color: Color(0xFF2661FA)
+                //       ),
+                //     ),
+                //   ),
+                // ),
+                // SizedBox(height: size.height * 0.05),
               ],
             ),
           ),

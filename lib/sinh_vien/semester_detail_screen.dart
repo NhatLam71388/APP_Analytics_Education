@@ -68,6 +68,7 @@ class _SemesterDetailScreenState extends State<SemesterDetailScreen>
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.transparent,
+        centerTitle: true,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: Colors.blue.shade700),
           onPressed: () => Navigator.of(context).pop(),

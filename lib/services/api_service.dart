@@ -150,6 +150,38 @@ class ApiService {
       throw Exception('Lỗi kết nối: ${e.toString()}');
     }
   }
+
+  // POST /auth/forgot-password
+  static Future<Map<String, String>> forgotPassword(String username) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/forgot-password'),
+        headers: getHeaders(),
+        body: jsonEncode({
+          'username': username,
+          'email': 'vanhung71388@gmail.com',
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final jsonData = jsonDecode(response.body);
+        return {
+          'message': jsonData['message'] ?? 'Mật khẩu đã được đặt lại và gửi về email của bạn',
+          'hint': jsonData['hint'] ?? 'Vui lòng kiểm tra email (kể cả mục Spam/Junk)',
+        };
+      } else if (response.statusCode == 404) {
+        final errorData = jsonDecode(response.body);
+        throw Exception(errorData['detail'] ?? 'Tài khoản không tồn tại');
+      } else {
+        throw Exception('Yêu cầu quên mật khẩu thất bại: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (e is Exception) {
+        rethrow;
+      }
+      throw Exception('Lỗi kết nối: ${e.toString()}');
+    }
+  }
 }
 
 

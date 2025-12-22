@@ -442,7 +442,7 @@ class PassFailDonutChart extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            '$count SV',
+            '$count lượt',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
