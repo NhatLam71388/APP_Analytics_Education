@@ -1337,7 +1337,23 @@ class _PredictionScreenState extends State<PredictionScreen>
     );
   }
 
+  List<MonDuDoan> _removeDuplicateSubjects(List<MonDuDoan> danhSachMon) {
+    final Map<String, MonDuDoan> uniqueSubjects = {};
+    
+    for (var mon in danhSachMon) {
+      final tenMonHocNormalized = mon.tenMonHoc.trim().toLowerCase();
+      
+      if (!uniqueSubjects.containsKey(tenMonHocNormalized)) {
+        uniqueSubjects[tenMonHocNormalized] = mon;
+      }
+    }
+    
+    return uniqueSubjects.values.toList();
+  }
+
   Widget _buildSubjectsList(List<MonDuDoan> danhSachMon) {
+    final uniqueSubjects = _removeDuplicateSubjects(danhSachMon);
+    
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
@@ -1378,11 +1394,11 @@ class _PredictionScreenState extends State<PredictionScreen>
               ],
             ),
             const SizedBox(height: 20),
-            ...danhSachMon.asMap().entries.map((entry) {
+            ...uniqueSubjects.asMap().entries.map((entry) {
               final index = entry.key;
               final mon = entry.value;
               return Padding(
-                padding: EdgeInsets.only(bottom: index < danhSachMon.length - 1 ? 12 : 0),
+                padding: EdgeInsets.only(bottom: index < uniqueSubjects.length - 1 ? 12 : 0),
                 child: _buildSubjectItem(mon),
               );
             }),
