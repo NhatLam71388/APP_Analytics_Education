@@ -53,9 +53,3 @@
 * **Trực quan hóa hiệu quả:** Chuyển đổi các khối dữ liệu OLAP phức tạp thành các biểu đồ dễ hiểu trên thiết bị di động.
 * **Tính chủ động:** Giúp sinh viên tự theo dõi lộ trình học tập và giảng viên quản lý lớp học hiệu quả hơn nhờ các chỉ số cảnh báo sớm.
 * **Tích hợp công nghệ mới:** Ứng dụng thành công AI vào việc hỗ trợ phân tích giáo dục.
-
----
-
-## 👥 Thành viên thực hiện (Nhóm Mobile)
-* **Đinh Nguyễn Nhật Lâm** - Mobile App Developer & Logic Analysis.
-* Phối hợp cùng nhóm ETL & Data Warehouse để hoàn thiện luồng dữ liệu.
